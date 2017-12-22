@@ -1,5 +1,9 @@
 include <util.scad>;
 
+// rear drive servo: channel 1
+// front drive servo: channel 2
+// arm servo: channel 3
+
 resolution = 32;
 wheel_res  = 96;
 spacer     = 1;
@@ -14,8 +18,10 @@ minifig_area_x = lego_peg*2;
 minifig_area_y = lego_peg*2;
 minifig_area_z = 50;
 
-clamp_nut_diam = 5.6; // 5.5 m3 nut + fudge
-clamp_screw_diam = 3.2; // 3mm screw + fudge
+clamp_nut_diam = 5.7; // 5.5 m3 nut + fudge
+clamp_screw_diam = 3.5; // 3mm screw + fudge
+
+m3_thread_diam = 2.7;
 
 servo_width  = 13;
 servo_length = 23;
@@ -30,19 +36,19 @@ servo_flange_thickness       = 3;
 servo_arm_diam   = 8;
 servo_arm_height = 2;
 
-rx_board_width  = 22;
+rx_board_width  = 21.5;
 rx_board_length = 41;
 rx_board_height = 7;
 rx_board_pin_area = 10;
 rx_board_pin_height = 15;
 
-bearing_outer = 6;
+bearing_outer = 6.1;
 bearing_inner = 3;
 bearing_thickness = 2.5;
 
 battery_width = 28.5;
 battery_length = 42;
-battery_thickness = 9.5;
+battery_thickness = 9.25;
 
 belt_diam = 151;
 belt_teeth = 20;
@@ -52,9 +58,16 @@ wheel_circumference = wheel_teeth * belt_pitch;
 wheel_diam = wheel_circumference / pi;
 wheel_width = 13.5;
 wheel_supported_width = bearing_thickness*3;
-wheelbase = (belt_diam - wheel_circumference) / 2 - 0.25; // 0.25mm closer to avoid axle strain
+wheelbase = (belt_diam - wheel_circumference) / 2 + 0.5;
 
 overall_width = servo_height + servo_pinion_shoulder_height*2 - 0.1;
+
+rx_board_cavity_width  = overall_width - wall_thickness*2;
+rx_board_cavity_height = rx_board_width;
+rx_board_cavity_length = rx_board_length;
+
+echo("RX CAVITY WIDTH: ", rx_board_cavity_width);
+echo("RX CAVITY HEIGHT: ", rx_board_cavity_height);
 
 echo("BELT PITCH: ", belt_pitch);
 echo("WHEEL DIAM: ", wheel_diam);
@@ -66,23 +79,30 @@ servo_pos_y = wheelbase/2-0.25;
 //wheelbase = servo_pos_y*2;
 
 rear_clamp_pos_x = 0;
-rear_clamp_pos_y = -servo_pos_y-servo_pinion_shoulder_diam/2 - servo_flange_length - clamp_nut_diam;
 rear_clamp_pos_z = 0;
 
-//arm_servo_pos_y = -servo_pos_y-servo_flange_length - servo_width/2;
+arm_servo_pos_y = -servo_pos_y-servo_flange_length - wall_thickness*2 - servo_width/2;
 arm_servo_pos_z = servo_width/2 + wall_thickness + servo_flange_length + servo_length/2 + servo_pinion_shoulder_diam/2;
 
 body_top_z  = arm_servo_pos_z + servo_pinion_shoulder_diam/2 + servo_flange_length;
 body_rear_y = rear_clamp_pos_y - clamp_nut_diam/2 - rounded_diam/2;
+body_rear_y = arm_servo_pos_y - servo_width/2 - wall_thickness;
 
-arm_servo_pos_y = body_rear_y + rounded_diam/2 + servo_width/2;
+//rear_clamp_pos_y = -servo_pos_y-servo_pinion_shoulder_diam/2 - servo_flange_length - clamp_nut_diam;
+rear_clamp_pos_y = body_rear_y + clamp_nut_diam/2 + rounded_diam/2;
 
-battery_pos_z = servo_width/2 + wall_thickness*2 + battery_length/2;
+battery_pos_z = servo_width/2 + wall_thickness*3 + battery_length/2;
 battery_pos_y = arm_servo_pos_y + servo_width/2 + wall_thickness*2 + battery_thickness/2;
 
-//rx_board_pos_y = servo_pos_y + servo_pinion_shoulder_diam/2 + servo_flange_length - rx_board_length/2 - clamp_nut_diam/2;
-rx_board_pos_y = battery_pos_y + battery_thickness/2 + wall_thickness*2 + rx_board_length/2;
-rx_board_pos_z = servo_width/2 + wall_thickness*2 + rx_board_height/2;
+rx_board_pos_x = overall_width/2 - wall_thickness - rx_board_height/2;
+rx_board_pos_y = servo_pos_y + servo_pinion_shoulder_diam/2 + servo_flange_length - rx_board_length/2 - clamp_nut_diam/2;
+rx_board_pos_y = battery_pos_y + battery_thickness/2 + wall_thickness + rx_board_length/2;
+// rx_board_pos_y = battery_pos_y + battery_thickness/2 + wall_thickness*2 + rx_board_length/2;
+rx_board_pos_z = servo_width/2 + wall_thickness + rx_board_width/2;
+
+rx_board_cavity_pos_x = 0;
+rx_board_cavity_pos_y = rx_board_pos_y;
+rx_board_cavity_pos_z = rx_board_pos_z;
 
 front_clamp_pos_x = rear_clamp_pos_x;
 //front_clamp_pos_y = rx_board_pos_y + rx_board_length/2;
@@ -140,10 +160,43 @@ module servo() {
 }
 
 module rx_board() {
+  // main board
   cube([rx_board_width,rx_board_length,rx_board_height],center=true);
 
-  translate([0,-rx_board_length/2+rx_board_pin_area/2,rx_board_pin_height/2]) {
+  // pin area
+  translate([0,-rx_board_length/2+rx_board_pin_area/2,-rx_board_height/2+rx_board_pin_height/2]) {
     cube([rx_board_width,rx_board_pin_area,rx_board_pin_height],center=true);
+  }
+
+  // antenna
+}
+
+module rx_board_cavity() {
+  antenna_hole_width = 2;
+  antenna_hole_height = 4;
+
+  rear_height = body_top_z-rx_board_cavity_pos_z;
+
+  hull() {
+    translate([0,0,-wall_thickness/4]) {
+      cube([rx_board_cavity_width,rx_board_cavity_length,rx_board_cavity_height-wall_thickness/2],center=true);
+    }
+
+    translate([0,-rx_board_cavity_length/2+0.05,rear_height/2-wall_thickness/4]) {
+      cube([rx_board_cavity_width,0.1,rear_height-wall_thickness/2],center=true);
+    }
+  }
+
+  // if we're mounting it sideways
+  for (side=[left,right]) {
+    translate([side*(rx_board_cavity_width/2-antenna_hole_height/2),rx_board_cavity_length-1,0]) {
+      cube([antenna_hole_height,rx_board_cavity_length,antenna_hole_width],center=true);
+    }
+  }
+
+  // if we're mounting it on the bottom
+  translate([0,rx_board_cavity_length-1,-rx_board_cavity_height/2+antenna_hole_height/2]) {
+    cube([antenna_hole_width,rx_board_cavity_length,antenna_hole_height],center=true);
   }
 }
 
@@ -152,8 +205,14 @@ module minifig_area() {
 }
 
 module cavities() {
-  translate([0, rx_board_pos_y, rx_board_pos_z]) {
-    rx_board();
+  translate([rx_board_pos_x, rx_board_pos_y, rx_board_pos_z]) {
+    rotate([0,-90,0]) {
+      // rx_board();
+    }
+  }
+
+  translate([rx_board_cavity_pos_x, rx_board_cavity_pos_y, rx_board_cavity_pos_z]) {
+    rx_board_cavity();
   }
 
   // front servo
@@ -162,7 +221,7 @@ module cavities() {
       servo();
 
       // axle hole for opposite side
-      hole(2.5, overall_width*2, 8);
+      hole(m3_thread_diam, overall_width*2, 8);
     }
   }
 
@@ -174,7 +233,7 @@ module cavities() {
       }
 
       // axle hole for opposite side
-      hole(2.5, overall_width*2, 8);
+      hole(m3_thread_diam, overall_width*2, 8);
     }
   }
 
@@ -190,38 +249,52 @@ module cavities() {
   }
 
   // battery
+  battery_cable_hole_width = 3;
+  battery_cable_hole_depth = 1.5;
   translate([0,battery_pos_y,battery_pos_z]) {
     rotate([90,0,0]) {
       battery();
+    }
+
+    // smooth area for cables
+    translate([0,0,-battery_length/2-wall_thickness]) {
+      rotate([0,0,90]) {
+        round_a_square(battery_thickness+wall_thickness*2,14);
+      }
+    }
+
+    // room for cable between rx board and battery
+    translate([battery_cable_hole_width/2,battery_thickness,battery_length/4]) {
+      cube([battery_cable_hole_width,battery_cable_hole_depth,battery_length/2],center=true);
     }
   }
 
   // rx board access
   translate([0,rx_board_pos_y-rx_board_length/2+rx_board_pin_area/2,rx_board_pos_z+rx_board_pin_height*0.75+10]) {
-    cube([overall_width+1,rx_board_pin_area,20.5],center=true);
+    // cube([overall_width+1,rx_board_pin_area,20.5],center=true);
   }
 
   translate([minifig_pos_x,minifig_pos_y,minifig_pos_z]) {
-    minifig_area();
+    // % minifig_area();
   }
 
   // cable clearances for arm servo
-  translate([0,arm_servo_pos_y+servo_width/2,arm_servo_pos_z-servo_pinion_shoulder_diam/2-0.5]) {
+  translate([0,arm_servo_pos_y+servo_width/2,arm_servo_pos_z+servo_pinion_shoulder_diam/2-servo_length/2]) {
     cube([14,wall_thickness*2,servo_length+servo_flange_length*2],center=true);
   }
 
   // cable clearances for drive servos
   hull() {
     for (side=[left,right]) {
-      translate([0,side*(servo_pos_y-servo_pinion_shoulder_diam/2),servo_width/2]) {
-        cube([14,servo_length+servo_flange_length*2,wall_thickness*2],center=true);
+      translate([0,side*(servo_pos_y+servo_pinion_shoulder_diam/2-servo_length/2),servo_width/2]) {
+        cube([14,servo_length+servo_flange_length*2,wall_thickness*4],center=true);
       }
     }
   }
 
   // cable clearance for rx board
   translate([0,rx_board_pos_y-rx_board_length/2,rx_board_pos_z]) {
-    cube([14,wall_thickness*2,servo_length+servo_flange_length*2],center=true);
+    // cube([14,wall_thickness*2,servo_length+servo_flange_length*2],center=true);
   }
 
   clamp_coords = [
@@ -232,17 +305,31 @@ module cavities() {
   for(pos=clamp_coords) {
     translate(pos) {
       rotate([0,90,0]) {
-        // screw shaft
-        hole(clamp_screw_diam, overall_width/2-extrusion_height*2, 8);
+        translate([0,0,-overall_width/4]) {
+          // screw shaft
+          hole(m3_thread_diam, overall_width/2+1, 8);
+        }
 
         // screw head and nut
-        for(side=[left,right]) {
-          translate([0,0,side*overall_width/2]) {
-            rotate([0,0,90]) {
-              hole(clamp_nut_diam, overall_width/2, 6);
-            }
+        translate([0,0,5-extrusion_height/2-0.05]) {
+          hole(clamp_screw_diam, 10-extrusion_height, 8);
+        }
+
+        translate([0,0,overall_width/4+1+10]) {
+          rotate([0,0,90]) {
+            hole(clamp_nut_diam, overall_width/2+2, 6);
           }
         }
+      }
+    }
+  }
+
+  // screw holes for rear attachments
+  attachment_hole_depth = 2*(abs(body_rear_y)-abs(rear_clamp_pos_y));
+  for(side=[left,right]) {
+    translate([servo_width/2*side,body_rear_y,arm_servo_pos_z+servo_pinion_shoulder_diam/2-servo_length-servo_flange_length-wall_thickness-m3_thread_diam/2]) {
+      rotate([90,0,0]) {
+        hole(m3_thread_diam,attachment_hole_depth*2,8);
       }
     }
   }
@@ -282,7 +369,10 @@ module outer_shell() {
     [0,body_rear_y+rounded_diam/2+servo_width, arm_servo_pos_z + servo_pinion_shoulder_diam/2 + servo_flange_length],
 
     // minifig area
-    [0,rx_board_pos_y+rx_board_length/2, rx_board_pos_z + rx_board_pin_height - rounded_diam/2],
+    [0,rx_board_pos_y+rx_board_length/2, rx_board_pos_z + rx_board_width/2],
+
+    // in front of battery
+    [0,battery_pos_y+battery_thickness/2+wall_thickness, body_top_z],
   ];
 
   clamp_coords = [
@@ -297,7 +387,7 @@ module outer_shell() {
     for(pos=body_coords) {
       translate(pos) {
         rotate([0,90,0]) {
-          # rounded_body_part(rounded_diam, overall_width);
+          rounded_body_part(rounded_diam, overall_width);
         }
       }
     }
@@ -316,25 +406,53 @@ module outer_shell() {
 
 module main_body() {
   % difference() {
-    //outer_shell();
+    outer_shell();
     translate([-overall_width/2,0,0]) {
-      //cube([overall_width,100,100],center=true);
+      cube([overall_width,100,100],center=true);
     }
   }
   /*
   */
   difference() {
-    outer_shell();
+    //outer_shell();
     cavities();
     translate([-overall_width/2,0,0]) {
+      //cube([overall_width,100,100],center=true);
+    }
+  }
+}
+
+module body_side(side=left) {
+  difference() {
+    outer_shell();
+    cavities();
+    translate([side*overall_width/2,0,0]) {
       cube([overall_width,100,100],center=true);
+    }
+  }
+}
+
+module round_a_square(width,depth) {
+  translate([0,0,width/2]) {
+    difference() {
+      cube([width+wall_thickness*4,depth,width+4],center=true);
+
+      hull() {
+        rotate([90,0,0]) {
+          hole(width,depth+1,resolution);
+        }
+        translate([0,0,width/2]) {
+          cube([width,depth+1,width],center=true);
+        }
+      }
     }
   }
 }
 
 module wheel() {
   tooth_width    = 5;
-  tooth_height   = 6;
+  tooth_height   = 5;
+  flat_bottom_width = 1.5;
   sidewall_width = (wheel_width - tooth_width)/2;
   inner_diam     = wheel_diam - tooth_height;
 
@@ -345,28 +463,22 @@ module wheel() {
           square([wheel_diam/2,sidewall_width], center=true);
         }
 
-        translate([inner_diam/4,side*1,0]) {
+        translate([inner_diam/4,side*(1+flat_bottom_width/2),0]) {
           square([inner_diam/2,2],center=true);
         }
       }
     }
+
+    translate([inner_diam/4,0,0]) {
+      square([inner_diam/2,wheel_width-1],center=true);
+    }
   }
 
   module wheel_body() {
-    degrees = 360 / wheel_teeth;
-
     rotate_extrude($fn=wheel_res,convexity=10) {
       profile();
     }
 
-    // Ribs to grip teeth. Probably YAGNI based on friction with rubber track
-    for(i=[0:wheel_teeth-1]) {
-      rotate([0,0,degrees*i+degrees/2]) {
-        translate([0, wheel_diam/4,0]) {
-          cube([extrusion_width*2, wheel_diam/2-0.05,wheel_width],center=true);
-        }
-      }
-    }
   }
 
   module wheel_holes() {
@@ -388,6 +500,8 @@ module wheel() {
 }
 
 module driven_wheel() {
+  degrees = 360 / wheel_teeth;
+
   module arm_cavity() {
     arm_width = 4.5;
     rounded_diam = 3;
@@ -420,12 +534,26 @@ module driven_wheel() {
     }
   }
 
-
   difference() {
-    wheel();
+    union() {
+      wheel();
+      // Ribs to grip teeth. Probably YAGNI based on friction with rubber track
+      for(i=[0:wheel_teeth-1]) {
+        rotate([0,0,degrees*i+degrees/2]) {
+          hull() {
+            translate([0, wheel_diam/2-0.1,0]) {
+              cube([extrusion_width*2, 0.1,wheel_width],center=true);
+            }
+            translate([0, bearing_outer/2+0.1, wheel_width/2-wheel_supported_width/2-0.05]) {
+              cube([extrusion_width*2, 0.1,wheel_supported_width],center=true);
+            }
+          }
+        }
+      }
+    }
 
     translate([0,0,wheel_width/2-1.5+extrusion_height]) {
-      hole(2.5, bearing_thickness*2, 16);
+      hole(2.75, bearing_thickness*2, 16);
     }
     translate([0,0,-bearing_thickness-1.5]) {
       hole(bearing_outer, wheel_width, 32);
@@ -445,7 +573,7 @@ module idler_wheel() {
       hole(bearing_outer, bearing_thickness*2, 16);
 
       translate([0,0,extrusion_height]) {
-        hole(bearing_outer-1, bearing_thickness*4, 16);
+        hole(bearing_outer-0.75, bearing_thickness*4, 16);
       }
     }
 
